@@ -4,12 +4,9 @@ import time
 
 # Import specific enums to avoid linter errors
 from odrive.enums import (
-    MOTOR_TYPE_PMSM_CURRENT_CONTROL,
+    MOTOR_TYPE_PMSM_VOLTAGE_CONTROL,  # Changed for sensorless control in this ODrive version
     ENCODER_MODE_HALL,
     CONTROL_MODE_VELOCITY_CONTROL,
-    AXIS_STATE_MOTOR_CALIBRATION,
-    AXIS_STATE_ENCODER_OFFSET_CALIBRATION,
-    AXIS_STATE_CLOSED_LOOP_CONTROL,
     AXIS_STATE_IDLE,
     AXIS_STATE_SENSORLESS_CONTROL,
 )
@@ -46,7 +43,7 @@ def setup_axis(odrv0, axis, axis_name):
 
     # Configure motor for 6.5" hoverboard hub motors - BYPASS CALIBRATION
     axis.motor.config.pole_pairs = 10  # Typical for hoverboard motors
-    axis.motor.config.motor_type = MOTOR_TYPE_PMSM_CURRENT_CONTROL
+    axis.motor.config.motor_type = MOTOR_TYPE_PMSM_VOLTAGE_CONTROL  # Changed for sensorless control
     axis.motor.config.current_lim = 10
     axis.motor.config.requested_current_range = 20
     axis.motor.config.calibration_current = 5
@@ -54,7 +51,8 @@ def setup_axis(odrv0, axis, axis_name):
     axis.motor.config.phase_inductance = 0.00015  # Manual value for hoverboard motors
     axis.motor.config.pre_calibrated = True
 
-    # Configure encoder for hall sensors (but we won't use it)
+    # For sensorless control, we don't need encoder configuration
+    # But we'll keep it minimal in case we switch back to encoder mode
     axis.encoder.config.mode = ENCODER_MODE_HALL
     axis.encoder.config.cpr = 60  # 6 hall sensors * 10 pole pairs
     axis.encoder.config.bandwidth = 1000
@@ -74,26 +72,52 @@ def setup_axis(odrv0, axis, axis_name):
     axis.config.startup_sensorless_control = False
 
 
+def check_axis_state(axis, axis_name, expected_state):
+    """Check if axis is in expected state"""
+    if axis.current_state != expected_state:
+        print(f"ERROR: {axis_name} is in state {axis.current_state}, expected {expected_state}")
+        dump_axis_errors(axis, axis_name)
+        return False
+    return True
+
+
 # Main logic
-odrv0 = odrive.find_any()
-axis0 = odrv0.axis0
-axis1 = odrv0.axis1
+try:
+    odrv0 = odrive.find_any()
+    axis0 = odrv0.axis0
+    axis1 = odrv0.axis1
 
-setup_axis(odrv0, axis0, "axis0")
-setup_axis(odrv0, axis1, "axis1")
+    setup_axis(odrv0, axis0, "axis0")
+    setup_axis(odrv0, axis1, "axis1")
 
-axis0.requested_state = AXIS_STATE_SENSORLESS_CONTROL
-axis1.requested_state = AXIS_STATE_SENSORLESS_CONTROL
+    print("\nStarting sensorless control...")
+    axis0.requested_state = AXIS_STATE_SENSORLESS_CONTROL
+    axis1.requested_state = AXIS_STATE_SENSORLESS_CONTROL
 
-speed = 1
-axis0.controller.input_vel = 0.00001
-axis1.controller.input_vel = 0.00001
+    time.sleep(1)
 
-time.sleep(10)
 
-print("stop")
-axis0.controller.input_vel = 0
-axis1.controller.input_vel = 0
+    speed = 0.00001
+    print(f"Setting velocity to {speed}")
+    axis0.controller.input_vel = speed
+    axis1.controller.input_vel = speed
 
-axis0.requested_state = AXIS_STATE_IDLE
-axis1.requested_state = AXIS_STATE_IDLE
+    time.sleep(10)
+
+    print("Stopping motors...")
+    axis0.controller.input_vel = 0
+    axis1.controller.input_vel = 0
+
+    print("Returning to idle state...")
+    axis0.requested_state = AXIS_STATE_IDLE
+    axis1.requested_state = AXIS_STATE_IDLE
+
+    print("Done!")
+
+except Exception as e:
+    print(f"Error: {e}")
+    try:
+        axis0.requested_state = AXIS_STATE_IDLE
+        axis1.requested_state = AXIS_STATE_IDLE
+    except:
+        pass
