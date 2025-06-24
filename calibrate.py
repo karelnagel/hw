@@ -1,17 +1,13 @@
 import odrive
-from odrive.enums import *
 import time
 
-# Import specific enums to avoid linter errors
 from odrive.enums import (
     MOTOR_TYPE_PMSM_CURRENT_CONTROL,
+    MOTOR_TYPE_PMSM_VOLTAGE_CONTROL,
     ENCODER_MODE_HALL,
     CONTROL_MODE_VELOCITY_CONTROL,
-    AXIS_STATE_MOTOR_CALIBRATION,
     AXIS_STATE_ENCODER_OFFSET_CALIBRATION,
-    AXIS_STATE_CLOSED_LOOP_CONTROL,
     AXIS_STATE_IDLE,
-    AXIS_STATE_SENSORLESS_CONTROL,
 )
 
 
@@ -46,7 +42,8 @@ def setup_and_test_axis(odrv0, axis, axis_name):
 
     # Configure motor for 6.5" hoverboard hub motors - BYPASS CALIBRATION
     axis.motor.config.pole_pairs = 10  # Typical for hoverboard motors
-    axis.motor.config.motor_type = MOTOR_TYPE_PMSM_CURRENT_CONTROL
+    axis.motor.config.motor_type = MOTOR_TYPE_PMSM_VOLTAGE_CONTROL
+    # axis.motor.config.motor_type = MOTOR_TYPE_PMSM_CURRENT_CONTROL
     axis.motor.config.current_lim = 10
     axis.motor.config.requested_current_range = 20
     axis.motor.config.calibration_current = 5
@@ -80,34 +77,32 @@ def setup_and_test_axis(odrv0, axis, axis_name):
     dump_axis_errors(axis, axis_name)
 
     if axis.error != 0:
+        axis.error = 0
+        axis.encoder.error = 0
         print(f"{axis_name} encoder calibration failed!")
         return
 
     print("Hall sensor calibration successful! Entering closed loop control...")
-    axis.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
-    time.sleep(1)
-    if axis.current_state == AXIS_STATE_CLOSED_LOOP_CONTROL:
-        print("Successfully entered closed loop control!")
-        print("Setting velocity to 1 turn/sec...")
-        axis.controller.input_vel = 1
-        print("Wheels should now be spinning!")
-        try:
-            for _ in range(10):
-                print(f"Target velocity: {axis.controller.input_vel:.2f} turns/sec")
-                print(f"Actual velocity: {axis.encoder.vel_estimate:.2f} turns/sec")
-                print(f"Position: {axis.encoder.pos_estimate:.2f} turns")
-                time.sleep(1)
-        except KeyboardInterrupt:
-            print("\nStopping...")
-        axis.controller.input_vel = 0
-        axis.requested_state = AXIS_STATE_IDLE
-    else:
-        print("Failed to enter closed loop control!")
-        dump_axis_errors(axis, axis_name)
 
 
 # Main logic
 odrv0 = odrive.find_any()
+try:
+    odrv0.erase_configuration()
+except:
+    print("erased")
+
+odrv0 = odrive.find_any()
+odrv0.config.enable_uart = True
 setup_and_test_axis(odrv0, odrv0.axis0, "axis0")
 odrv0 = odrive.find_any()
 setup_and_test_axis(odrv0, odrv0.axis1, "axis1")
+
+# Save configuration to make it persistent
+print("\n--- Saving configuration ---")
+try:
+    odrv0.save_configuration()
+    print("Configuration saved successfully!")
+except Exception as e:
+    print(f"Error saving configuration: {e}")
+    print("Configuration may not be persistent after power cycle")
