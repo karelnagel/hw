@@ -36,7 +36,7 @@ def wait_for_calibration(axis):
     print("Calibration complete!")
 
 
-def setup_and_test_axis(odrv0, axis, axis_name):
+def setup_axis(odrv0, axis, axis_name):
     print(f"\n--- Testing {axis_name} (sensorless control, bypass all calibration) ---")
     # Clear errors
     axis.error = 0
@@ -58,7 +58,7 @@ def setup_and_test_axis(odrv0, axis, axis_name):
     axis.encoder.config.mode = ENCODER_MODE_HALL
     axis.encoder.config.cpr = 60  # 6 hall sensors * 10 pole pairs
     axis.encoder.config.bandwidth = 1000
-    axis.encoder.config.pre_calibrated = False
+    axis.encoder.config.pre_calibrated = True
 
     # Controller config for sensorless control
     axis.controller.config.control_mode = CONTROL_MODE_VELOCITY_CONTROL
@@ -73,34 +73,27 @@ def setup_and_test_axis(odrv0, axis, axis_name):
     axis.config.startup_closed_loop_control = False
     axis.config.startup_sensorless_control = False
 
-    print("Using sensorless control (no encoder calibration needed)...")
-    axis.requested_state = AXIS_STATE_SENSORLESS_CONTROL
-    time.sleep(1)
-    
-    if axis.current_state == AXIS_STATE_SENSORLESS_CONTROL:
-        print("Successfully entered sensorless control!")
-        print("Setting velocity to 1 turn/sec...")
-        axis.controller.input_vel = 1
-        print("Wheels should now be spinning!")
-        try:
-            for _ in range(10):
-                print(f"Target velocity: {axis.controller.input_vel:.2f} turns/sec")
-                print(f"Motor current: {axis.motor.current_control.Iq_measured:.3f} A")
-                print(f"Bus voltage: {odrv0.vbus_voltage:.1f} V")
-                print(f"State: {axis.current_state}")
-                print("---")
-                time.sleep(1)
-        except KeyboardInterrupt:
-            print("\nStopping...")
-        axis.controller.input_vel = 0
-        axis.requested_state = AXIS_STATE_IDLE
-    else:
-        print("Failed to enter sensorless control!")
-        dump_axis_errors(axis, axis_name)
-
 
 # Main logic
 odrv0 = odrive.find_any()
-setup_and_test_axis(odrv0, odrv0.axis0, "axis0")
-odrv0 = odrive.find_any()
-setup_and_test_axis(odrv0, odrv0.axis1, "axis1")
+axis0 = odrv0.axis0
+axis1 = odrv0.axis1
+
+setup_axis(odrv0, axis0, "axis0")
+setup_axis(odrv0, axis1, "axis1")
+
+axis0.requested_state = AXIS_STATE_SENSORLESS_CONTROL
+axis1.requested_state = AXIS_STATE_SENSORLESS_CONTROL
+
+speed = 1
+axis0.controller.input_vel = 0.00001
+axis1.controller.input_vel = 0.00001
+
+time.sleep(10)
+
+print("stop")
+axis0.controller.input_vel = 0
+axis1.controller.input_vel = 0
+
+axis0.requested_state = AXIS_STATE_IDLE
+axis1.requested_state = AXIS_STATE_IDLE
