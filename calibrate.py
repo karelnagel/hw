@@ -1,6 +1,5 @@
 import odrive
 import time
-
 from odrive.enums import (
     MOTOR_TYPE_PMSM_CURRENT_CONTROL,
     MOTOR_TYPE_PMSM_VOLTAGE_CONTROL,
@@ -92,11 +91,16 @@ try:
 except:
     print("erased")
 
+
 odrv0 = odrive.find_any()
 odrv0.config.enable_uart = True
+odrv0.config.uart_baudrate = 115200
+
+odrv0 = odrive.find_any()
 setup_and_test_axis(odrv0, odrv0.axis0, "axis0")
 odrv0 = odrive.find_any()
 setup_and_test_axis(odrv0, odrv0.axis1, "axis1")
+
 
 # Save configuration to make it persistent
 print("\n--- Saving configuration ---")
