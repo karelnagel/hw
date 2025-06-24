@@ -37,7 +37,7 @@ def wait_for_calibration(axis):
 
 
 def setup_and_test_axis(odrv0, axis, axis_name):
-    print(f"\n--- Testing {axis_name} (sensorless control, bypass all calibration) ---")
+    print(f"\n--- Testing {axis_name} (with hall sensors, bypass motor cal) ---")
     # Clear errors
     axis.error = 0
     axis.motor.error = 0
@@ -52,15 +52,15 @@ def setup_and_test_axis(odrv0, axis, axis_name):
     axis.motor.config.calibration_current = 5
     axis.motor.config.phase_resistance = 0.15  # Manual value for hoverboard motors
     axis.motor.config.phase_inductance = 0.00015  # Manual value for hoverboard motors
-    axis.motor.config.pre_calibrated = True
+    axis.motor.config.pre_calibrated = True  # Skip motor calibration
 
-    # Configure encoder for hall sensors (but we won't use it)
+    # Configure encoder for hall sensors
     axis.encoder.config.mode = ENCODER_MODE_HALL
     axis.encoder.config.cpr = 60  # 6 hall sensors * 10 pole pairs
     axis.encoder.config.bandwidth = 1000
-    axis.encoder.config.pre_calibrated = False
+    axis.encoder.config.pre_calibrated = False  # Allow hall sensor calibration
 
-    # Controller config for sensorless control
+    # Controller config
     axis.controller.config.control_mode = CONTROL_MODE_VELOCITY_CONTROL
     axis.controller.config.vel_limit = 15
     axis.controller.config.vel_limit_tolerance = 1.2
@@ -73,29 +73,36 @@ def setup_and_test_axis(odrv0, axis, axis_name):
     axis.config.startup_closed_loop_control = False
     axis.config.startup_sensorless_control = False
 
-    print("Using sensorless control (no encoder calibration needed)...")
-    axis.requested_state = AXIS_STATE_SENSORLESS_CONTROL
+    print("Skipping motor calibration (using manual parameters)...")
+    print("Starting encoder (hall sensor) calibration...")
+    axis.requested_state = AXIS_STATE_ENCODER_OFFSET_CALIBRATION
+    wait_for_calibration(axis)
+    dump_axis_errors(axis, axis_name)
+
+    if axis.error != 0:
+        print(f"{axis_name} encoder calibration failed!")
+        return
+
+    print("Hall sensor calibration successful! Entering closed loop control...")
+    axis.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
     time.sleep(1)
-    
-    if axis.current_state == AXIS_STATE_SENSORLESS_CONTROL:
-        print("Successfully entered sensorless control!")
+    if axis.current_state == AXIS_STATE_CLOSED_LOOP_CONTROL:
+        print("Successfully entered closed loop control!")
         print("Setting velocity to 1 turn/sec...")
         axis.controller.input_vel = 1
         print("Wheels should now be spinning!")
         try:
             for _ in range(10):
                 print(f"Target velocity: {axis.controller.input_vel:.2f} turns/sec")
-                print(f"Motor current: {axis.motor.current_control.Iq_measured:.3f} A")
-                print(f"Bus voltage: {odrv0.vbus_voltage:.1f} V")
-                print(f"State: {axis.current_state}")
-                print("---")
+                print(f"Actual velocity: {axis.encoder.vel_estimate:.2f} turns/sec")
+                print(f"Position: {axis.encoder.pos_estimate:.2f} turns")
                 time.sleep(1)
         except KeyboardInterrupt:
             print("\nStopping...")
         axis.controller.input_vel = 0
         axis.requested_state = AXIS_STATE_IDLE
     else:
-        print("Failed to enter sensorless control!")
+        print("Failed to enter closed loop control!")
         dump_axis_errors(axis, axis_name)
 
 
