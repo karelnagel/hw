@@ -40,16 +40,16 @@ try:
     
     speed = 0.00001
     print(f"Setting velocity to {speed}")
-    send_ascii_command(ser, f"v 0 {speed}")
-    send_ascii_command(ser, f"v 1 {speed}")
+    send_ascii_command(ser, f"v 0 {speed}", 0)
+    send_ascii_command(ser, f"v 1 {speed}", 0)
     
     time.sleep(2)
     
     print("Stopping motors...")
     
     # Stop both axes with batched commands
-    send_ascii_command(ser, f"v 0 {speed}")
-    send_ascii_command(ser, f"v 1 {speed}")
+    send_ascii_command(ser, f"v 0 0", 0)
+    send_ascii_command(ser, f"v 1 0", 0)
     
     
     send_ascii_command(ser, "w axis0.requested_state 1")  # 1 = AXIS_STATE_IDLE
