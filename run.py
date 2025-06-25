@@ -2,11 +2,6 @@ import odrive
 from odrive.enums import *
 import time
 
-from odrive.enums import (
-    AXIS_STATE_IDLE,
-    AXIS_STATE_SENSORLESS_CONTROL,
-)
-
 
 try:
     odrv0 = odrive.find_any()
