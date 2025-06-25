@@ -30,7 +30,6 @@ battery_voltage = 0.0
 motor_currents = [0.0, 0.0]
 motor_temperatures = [0.0, 0.0]
 uptime = 0
-current_speed = 1.0  # Default speed
 
 def get_battery_percentage(voltage):
     """Convert voltage to battery percentage (assuming 4S LiPo: 16.8V full, 12.6V empty)"""
@@ -97,14 +96,10 @@ except:
 
 time.sleep(1)
 
-def move(left, right, speed=None):
-    """Move motors with specified speed"""
-    global current_speed
-    if speed is not None:
-        current_speed = max(0.1, min(3.0, speed))  # Clamp between 0.1 and 3.0
-    
-    axis0.controller.input_vel = right * current_speed
-    axis1.controller.input_vel = left * -1 * current_speed
+def move(left, right, speed):
+    if axis0 and axis1:
+      axis0.controller.input_vel = right * speed
+      axis1.controller.input_vel = left * -1 * speed
 
 # Start status monitoring thread
 status_thread = threading.Thread(target=status_monitor, daemon=True)
@@ -114,7 +109,6 @@ HTML_PAGE = """
 <!doctype html>
 <html>
 <head>
-  <title>Orange Pi Robot Control</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     * {
@@ -353,10 +347,6 @@ HTML_PAGE = """
 </head>
 <body>
   <div class="container">
-    <div class="header">
-      <h1>🤖 Orange Pi Robot Control</h1>
-    </div>
-    
     <div class="video-container">
       <img src="{{ url_for('video_feed') }}" alt="Robot Camera Feed" id="video-feed">
     </div>
