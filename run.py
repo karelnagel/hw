@@ -18,13 +18,17 @@ try:
     axis1.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
 
     time.sleep(1)
+    
+    speed = 0.3
 
-    speed = 1
-    print(f"Setting velocity to {speed}")
-    axis0.controller.input_vel = speed
-    axis1.controller.input_vel = -speed
+    def move(left,right):
+        axis0.controller.input_vel = right * speed
+        axis1.controller.input_vel = left * -1 * speed
+        time.sleep(2)
 
-    time.sleep(2)
+    # move(left=1, right=1)
+    # move(left=1,right=-1)
+    move(left=-1,right=-1)
 
     print("Stopping motors...")
     axis0.controller.input_vel = 0
