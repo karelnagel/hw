@@ -14,15 +14,15 @@ try:
     axis1 = odrv0.axis1
 
     print("\nStarting sensorless control...")
-    axis0.requested_state = AXIS_STATE_SENSORLESS_CONTROL
-    axis1.requested_state = AXIS_STATE_SENSORLESS_CONTROL
+    axis0.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
+    axis1.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
 
     time.sleep(1)
 
-    speed = 0.00001
+    speed = 1
     print(f"Setting velocity to {speed}")
     axis0.controller.input_vel = speed
-    axis1.controller.input_vel = speed
+    axis1.controller.input_vel = -speed
 
     time.sleep(2)
 
